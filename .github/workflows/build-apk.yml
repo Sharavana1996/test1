@@ -31,7 +31,7 @@ jobs:
 
       # ── 4. Install JS deps ─────────────────────────────────────────────────
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       # ── 5. Cache Gradle ────────────────────────────────────────────────────
       - name: Cache Gradle packages
