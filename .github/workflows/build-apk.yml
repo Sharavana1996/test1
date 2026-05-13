@@ -33,19 +33,22 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      # ── 5. Download gradle-wrapper.jar ─────────────────────────────────────
+      # ── 5. Get gradle-wrapper.jar from official source ─────────────────────
       - name: Download gradle-wrapper.jar
         run: |
           mkdir -p android/gradle/wrapper
-          curl -L "https://services.gradle.org/distributions/gradle-8.6-bin.zip" -o /tmp/gradle.zip
-          unzip -j /tmp/gradle.zip "gradle-8.6/lib/gradle-launcher-*.jar" -d /tmp/gw 2>/dev/null || true
-          unzip -j /tmp/gradle.zip "*/gradle-wrapper.jar" -d /tmp/gw 2>/dev/null || true
-          JAR=$(find /tmp/gw -name "*.jar" -size +10k 2>/dev/null | head -1)
-          if [ -z "$JAR" ]; then
-            unzip /tmp/gradle.zip -d /tmp/gradle-dist
-            JAR=$(find /tmp/gradle-dist -name "gradle-wrapper*.jar" 2>/dev/null | head -1)
-          fi
-          cp "$JAR" android/gradle/wrapper/gradle-wrapper.jar
+          curl -L \
+            "https://services.gradle.org/distributions/gradle-8.6-bin.zip" \
+            -o /tmp/gradle.zip
+          # List what's in the zip so we can find the exact path
+          unzip -l /tmp/gradle.zip | grep "wrapper" || true
+          # Extract only the gradle-wrapper.jar (inside lib/plugins/)
+          unzip -j /tmp/gradle.zip \
+            "gradle-8.6/lib/plugins/gradle-wrapper-*.jar" \
+            -d /tmp/gw_out
+          cp /tmp/gw_out/gradle-wrapper-*.jar \
+             android/gradle/wrapper/gradle-wrapper.jar
+          echo "=== Jar size ==="
           ls -la android/gradle/wrapper/gradle-wrapper.jar
 
       # ── 6. Cache Gradle ────────────────────────────────────────────────────
