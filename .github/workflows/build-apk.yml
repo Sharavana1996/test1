@@ -33,23 +33,23 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      # ── 5. Get gradle-wrapper.jar from official source ─────────────────────
-      - name: Download gradle-wrapper.jar
+      # ── 5. Get correct gradle-wrapper.jar ─────────────────────────────────
+      - name: Set up Gradle wrapper jar
         run: |
           mkdir -p android/gradle/wrapper
-          curl -L \
-            "https://services.gradle.org/distributions/gradle-8.6-bin.zip" \
-            -o /tmp/gradle.zip
-          # List what's in the zip so we can find the exact path
-          unzip -l /tmp/gradle.zip | grep "wrapper" || true
-          # Extract only the gradle-wrapper.jar (inside lib/plugins/)
-          unzip -j /tmp/gradle.zip \
-            "gradle-8.6/lib/plugins/gradle-wrapper-*.jar" \
-            -d /tmp/gw_out
-          cp /tmp/gw_out/gradle-wrapper-*.jar \
-             android/gradle/wrapper/gradle-wrapper.jar
-          echo "=== Jar size ==="
-          ls -la android/gradle/wrapper/gradle-wrapper.jar
+          # Use gradle's own wrapper task to generate the jar
+          cd /tmp
+          mkdir gradle-init && cd gradle-init
+          cat > build.gradle << 'GRADLE'
+          wrapper {
+            gradleVersion = '8.6'
+          }
+          GRADLE
+          gradle wrapper --gradle-version 8.6
+          cp gradle/wrapper/gradle-wrapper.jar $GITHUB_WORKSPACE/android/gradle/wrapper/
+          echo "=== Jar info ==="
+          ls -la $GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar
+          jar tf $GITHUB_WORKSPACE/android/gradle/wrapper/gradle-wrapper.jar | grep -i "IDownload\|GradleWrapperMain" || echo "classes not found in jar listing"
 
       # ── 6. Cache Gradle ────────────────────────────────────────────────────
       - name: Cache Gradle packages
