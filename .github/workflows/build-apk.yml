@@ -5,7 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  workflow_dispatch:          # allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -33,7 +33,22 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      # ── 5. Cache Gradle ────────────────────────────────────────────────────
+      # ── 5. Download gradle-wrapper.jar ─────────────────────────────────────
+      - name: Download gradle-wrapper.jar
+        run: |
+          mkdir -p android/gradle/wrapper
+          curl -L "https://services.gradle.org/distributions/gradle-8.6-bin.zip" -o /tmp/gradle.zip
+          unzip -j /tmp/gradle.zip "gradle-8.6/lib/gradle-launcher-*.jar" -d /tmp/gw 2>/dev/null || true
+          unzip -j /tmp/gradle.zip "*/gradle-wrapper.jar" -d /tmp/gw 2>/dev/null || true
+          JAR=$(find /tmp/gw -name "*.jar" -size +10k 2>/dev/null | head -1)
+          if [ -z "$JAR" ]; then
+            unzip /tmp/gradle.zip -d /tmp/gradle-dist
+            JAR=$(find /tmp/gradle-dist -name "gradle-wrapper*.jar" 2>/dev/null | head -1)
+          fi
+          cp "$JAR" android/gradle/wrapper/gradle-wrapper.jar
+          ls -la android/gradle/wrapper/gradle-wrapper.jar
+
+      # ── 6. Cache Gradle ────────────────────────────────────────────────────
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -43,17 +58,17 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      # ── 6. Make Gradle executable ──────────────────────────────────────────
+      # ── 7. Make Gradle executable ──────────────────────────────────────────
       - name: Make gradlew executable
         working-directory: android
         run: chmod +x gradlew
 
-      # ── 7. Build release APK ───────────────────────────────────────────────
+      # ── 8. Build release APK ───────────────────────────────────────────────
       - name: Build Release APK
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      # ── 8. Sign APK (debug keystore — safe for testing) ───────────────────
+      # ── 9. Sign APK ────────────────────────────────────────────────────────
       - name: Sign APK with debug keystore
         run: |
           BUILD_TOOLS=$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
@@ -66,7 +81,7 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release*.apk \
              android/app/build/outputs/apk/release/PredictorApp-signed.apk
 
-      # ── 9. Upload APK as artifact ──────────────────────────────────────────
+      # ── 10. Upload APK ─────────────────────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -74,7 +89,7 @@ jobs:
           path: android/app/build/outputs/apk/release/PredictorApp-signed.apk
           retention-days: 30
 
-      # ── 10. Create GitHub Release on push to main ─────────────────────────
+      # ── 11. Create GitHub Release ──────────────────────────────────────────
       - name: Create Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v2
@@ -84,11 +99,6 @@ jobs:
           body: |
             ## Hybrid AI Sequence Predictor
             Auto-built APK from commit ${{ github.sha }}
-            ### What's inside
-            - Full Hybrid AI Prediction System (9 engines)
-            - Weekly pair dashboard with charts
-            - CSV/Excel data import
-            - Day-by-day ?? cell guesser
           files: android/app/build/outputs/apk/release/PredictorApp-signed.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
