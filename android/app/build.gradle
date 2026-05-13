@@ -1,6 +1,10 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 
+react {
+    // React Native autolinking
+}
+
 android {
     namespace "com.predictorapp"
     compileSdkVersion 34
@@ -22,8 +26,6 @@ android {
             keyPassword "android"
         }
         release {
-            // For CI: uses debug keystore so build succeeds without secrets
-            // Replace with your real keystore for Play Store release
             storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
             storePassword "android"
             keyAlias "androiddebugkey"
@@ -47,5 +49,3 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
 }
-
-apply from: file("../../node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/build.gradle.kts")
